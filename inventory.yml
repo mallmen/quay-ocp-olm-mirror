@@ -1,0 +1,5 @@
+registry:
+  hosts:
+    testbox:
+  vars:
+    ansible_connection: local

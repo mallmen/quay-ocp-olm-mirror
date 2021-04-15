@@ -1,0 +1,10 @@
+install_dir: /tmp/install-dir
+base_domain: local.lab
+cluster_name: ds
+cluster_network: 10.128.0.0/14
+host_prefix: 23
+network_type: OpenShiftSDN
+service_network: 172.30.0.0/16
+fips: false
+pull_secret: "{{ lookup('file','/tmp/pull-secret') }}"
+ssh_key: "{{ lookup('file','~/.ssh/ocp4.pub') }}"

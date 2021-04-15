@@ -1,0 +1,17 @@
+bootstrap:
+  name: bs
+  ipaddr: 10.1.2.11
+masters:
+  - name: m0
+    ipaddr: 10.1.2.20
+  - name: m1
+    ipaddr: 10.1.2.21
+  - name: m2
+    ipaddr: 10.1.2.22
+workers:
+  - name: w0
+    ipaddr: 10.1.2.30
+  - name: w1
+    ipaddr: 10.1.2.31
+  - name: w2
+    ipaddr: 10.1.2.32

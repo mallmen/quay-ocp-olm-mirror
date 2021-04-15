@@ -1,0 +1,176 @@
+---
+- name: Setup Quay non-production
+  hosts: registry
+  
+  vars_files:
+    - vars/quay-registry-vars.yml
+
+  tasks:
+    - name: Install required packages
+      when: quay_host_connected
+      become: yes
+      package:
+        name: "{{ required_pkgs }}"
+        state: present
+
+    - name: Setup base directory
+      file:
+        path: "{{ item }}"
+        state: directory      
+      loop:
+        - "{{ base_dir }}"
+        - "{{ postgresql_dir }}"
+        - "{{ quay_config_dir }}"
+        - "{{ quay_config_dir }}/extra_ca_certs"
+        - "{{ quay_storage_dir }}"
+
+    - name: Set ACLs for permissions on storage directories
+      acl:
+        path: "{{ item.dir }}"
+        entity: "{{ item.uid }}"
+        etype: user
+        permissions: "{{ item.perms }}"
+        state: present
+      loop:
+        - { dir: "{{ postgresql_dir }}", uid: '26', perms: '-wx' }
+        - { dir: "{{ quay_storage_dir }}", uid: '1001', perms: '-wx' }
+
+    - name: Get services status
+      service_facts:
+
+    - name: Configure firewall if running
+      when: ansible_facts.services['firewalld.service'].state == "running"
+      become: yes
+      firewalld:
+        port: "{{ item }}/tcp"
+        immediate: yes
+        permanent: yes
+        state: enabled
+      loop:
+        - "{{ quay_config_port }}"
+        - "{{ quay_port }}"
+        - "{{ postgresql_port }}"
+        - "{{ redis_port }}"
+
+    - name: Create a SAN cert config file
+      template:
+        src: ssl-ca.cnf.j2
+        dest: "{{ quay_config_dir }}/ssl-ca.cnf"
+
+    - name: Create a self-signed certificate with CA
+      command:
+        cmd: openssl req -newkey rsa:4096 -nodes -sha256 -keyout ssl.key -x509 -days 365 -out ssl.cert -config ssl-ca.cnf
+        chdir: "{{ quay_config_dir }}"
+        creates: ssl.cert
+
+    - name: Copy certificate to trust-store
+      become: yes
+      copy:
+        src: "{{ quay_config_dir }}/ssl.cert"
+        remote_src: yes
+        dest: /etc/pki/ca-trust/source/anchors/ssl.cert
+      register: copy_cert
+
+    - name: Update trust store
+      when: copy_cert.changed
+      become: yes
+      command: update-ca-trust
+
+    - name: Adjust cert and key perms to what Quay wants
+      file:
+         path: "{{ quay_config_dir }}/{{ item }}"
+         mode: 0775
+      loop:
+         - ssl.cert
+         - ssl.key
+
+    - name: Check if postgresql-quay container is running
+      become: yes
+      command: podman ps -f name='^postgresql-quay$' --format "{{ '{{' }} .Names {{ '}}' }}"
+      register: postgresql_status
+      changed_when: postgresql_status.rc != 0
+    
+    - name: Set fact for state of postgresql-quay
+      set_fact:
+        postgresql_quay_is_running: yes
+      when: 
+        - postgresql_status.stdout_lines|count == 1
+        - postgresql_status.stdout == "postgresql-quay"
+
+    - name: Run podman postgresql container
+      become: yes
+      when: postgresql_quay_is_running is not defined or not postgresql_quay_is_running
+      command: >
+        podman run -d --name postgresql-quay {% if postgresql_ip is defined %} --ip {{ postgresql_ip }} {% endif %}
+        {% if quay_host_connected %} --authfile {{ cloud_secret }} {% endif %}
+        -e POSTGRESQL_USER={{ postgresql_user }} -e POSTGRESQL_PASSWORD={{ postgresql_pass }}
+        -e POSTGRESQL_DATABASE={{ postgresql_db }} -e POSTGRESQL_ADMIN_PASSWORD={{ postgresql_admin_pass }}
+        -p {{ postgresql_port }}:{{ postgresql_port }} 
+        -v {{ base_dir }}/postgresql-quay:/var/lib/pgsql/data:Z
+        registry.redhat.io/rhel8/postgresql-10:1
+      register: postgresql_quay_started
+
+    - name: Pause to give database a change to start
+      when: postgresql_quay_started.changed
+      pause:
+        seconds: 5
+    
+    - name: Set pg_trgm extension in postgresql
+      become: yes
+      command: >
+        podman exec -it postgresql-quay /bin/bash 
+        -c 'echo "CREATE EXTENSION IF NOT EXISTS" pg_trgm | psql -d {{ postgresql_db }} -U postgres'
+      register: postgresql_add_extension
+      changed_when: "'already exists' not in postgresql_add_extension.stdout"
+
+    - name: Check if redis container is running
+      become: yes
+      command: podman ps -f name='^redis$' --format "{{ '{{' }} .Names {{ '}}' }}"
+      register: redis_status
+      changed_when: redis_status.rc != 0
+    
+    - name: Set fact for state of redis
+      set_fact:
+        redis_is_running: yes
+      when: 
+        - redis_status.stdout_lines|count == 1
+        - redis_status.stdout == "redis"
+
+    - name: Run podman redis container
+      become: yes
+      when: redis_is_running is not defined or not redis_is_running
+      command: >
+        podman run -d --name redis {% if redis_ip is defined %} --ip {{ redis_ip }} {% endif %}
+        {% if quay_host_connected %} --authfile {{ cloud_secret }} {% endif %}
+        -e REDIS_PASSWORD={{ redis_password }} -p {{ redis_port }}:{{ redis_port }} 
+        registry.redhat.io/rhel8/redis-5:1
+      register: redis_started
+
+    - name: Setup quay config.yaml
+      template:
+        src: config.yaml.j2
+        dest: "{{ quay_config_dir }}/config.yaml"
+
+    - name: Check if quay container is running
+      become: yes
+      command: podman ps -f name='^quay$' --format "{{ '{{' }} .Names {{ '}}' }}"
+      register: quay_status
+      changed_when: quay_status.rc != 0
+
+    - name: Set fact for state of quay
+      set_fact:
+        quay_is_running: yes
+      when: 
+        - quay_status.stdout_lines|count == 1
+        - quay_status.stdout == "quay"
+
+    - name: Run podman quay container
+      become: yes
+      when: quay_is_running is not defined or not quay_is_running
+      command: >
+        podman run -d -p {{ quay_port }}:{{ quay_port }}
+        {% if quay_host_connected %} --authfile {{ cloud_secret }} {% endif %}
+        --name quay -v {{ quay_config_dir }}:/conf/stack:Z 
+        -v {{ quay_storage_dir }}:/datastorage:Z 
+        registry.redhat.io/quay/quay-rhel8:v3.4.3
+      register: quay_started

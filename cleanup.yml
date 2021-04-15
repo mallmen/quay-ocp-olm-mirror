@@ -1,0 +1,41 @@
+---
+- name: Cleanup containers
+  hosts: registry
+
+  vars_files:
+    - vars/quay-registry-vars.yml
+    - vars/mirror-vars.yml
+
+  tasks:
+    - name: Cleanup containers and images
+      when: clean_images
+      block:
+        - name: Get the images to remove
+          become: yes
+          command: podman images -n
+          register: images
+
+        - name: Remove the images
+          become: yes
+          command: podman rmi -f {{ item.split()[2] }}
+          loop: "{{ images.stdout_lines }}"
+          loop_control:
+            label: "{{ item.split()[0] }}"
+
+        - name: Reload the images to the local registry
+          become: yes
+          command: podman load -i {{ item }}
+          loop: "{{ tar_images }}"
+
+    - name: Cleanup old quay data
+      become: yes
+      when: clean_data
+      file:
+        path: "{{ base_dir }}"
+        state: absent
+
+    - name: Cleanup old bundle dir
+      when: clean_bundle
+      file:
+        path: "{{ removable_media_path }}"
+        state: absent

@@ -1,0 +1,24 @@
+apiVersion: v1
+baseDomain: {{ base_domain }}
+compute:
+- hyperthreading: Enabled   
+  name: worker
+  replicas: 0 
+controlPlane:
+  hyperthreading: Enabled   
+  name: master 
+  replicas: 3 
+metadata:
+  name: {{ cluster_name }} 
+networking:
+  clusterNetwork:
+  - cidr: {{ cluster_network }}
+    hostPrefix: {{ host_prefix }} 
+  networkType: {{ network_type }}
+  serviceNetwork: 
+  - {{ service_network }}
+platform:
+  none: {} 
+fips: {{ fips }} 
+pullSecret: '{{ pull_secret|to_json }}'
+sshKey: '{{ ssh_key }}'

@@ -1,0 +1,46 @@
+---
+- name: Setup files needed for bare metal install
+  hosts: registry
+
+  vars_files:
+    - vars/install-config-vars.yml
+
+  tasks:
+    - name: Create {{ install_dir }}
+      file:
+        path: "{{ install_dir }}"
+        state: directory
+
+    - name: Generate the install-config.yaml
+      template:
+        src: install-config.yaml.j2
+        dest: "{{ install_dir }}/install-config.yaml"
+
+    - name: Backup install-config.yaml
+      copy:
+        src: "{{ install_dir }}/install-config.yaml"
+        dest: "{{ install_dir }}/install-config.yaml.bak"
+
+    - name: Generate manifest files
+      command: openshift-install create manifests --dir={{ install_dir }}
+
+    - name: Change master servers to non-schedulable
+      replace:
+        path: "{{ install_dir }}/manifests/cluster-scheduler-02-config.yml"
+        regexp: 'true'
+        replace: 'false'
+
+    - name: Generate ignition config files
+      command: openshift-install create ignition-configs --dir={{ install_dir }}
+
+    - name: Copy ignition config files to web server ignition directory
+      become: yes
+      copy:
+        src: "{{ install_dir }}/{{ item }}.ign"
+        dest: /var/www/html/ignition
+        mode: 0644
+      loop:
+        - bootstrap
+        - master
+        - worker 
+

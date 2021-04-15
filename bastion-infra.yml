@@ -1,0 +1,70 @@
+---
+- name: Setup some infrastructure needed for OpenShift install
+  hosts: registry
+
+  vars_files:
+    - vars/cluster-nodes.yml
+
+  tasks:
+    - name: Install required packages
+      become: yes
+      package:
+        name:
+          - httpd
+          - haproxy
+        state: present
+
+    - name: Get services status
+      service_facts:
+
+    - name: Configure firewall if running
+      when: ansible_facts.services['firewalld.service'].state == "running"
+      become: yes
+      firewalld:
+        port: "{{ item }}/tcp"
+        immediate: yes
+        permanent: yes
+        state: enabled
+      loop:
+        - 8080
+        - 80
+        - 443
+        - 6443
+        - 22623
+
+    - name: Modify httpd to use 8080
+      become: yes
+      replace:
+        path: /etc/httpd/conf/httpd.conf
+        regexp: '^Listen 80$'
+        replace: 'Listen 8080'
+
+    - name: Configure haproxy
+      become: yes
+      template:
+        src: haproxy.cfg.j2
+        dest: /etc/haproxy/haproxy.cfg
+
+    - name: Configure selinux for haproxy
+      become: yes
+      seboolean:
+        name: haproxy_connect_any
+        state: yes
+        persistent: yes
+
+    - name: Start services
+      become: yes
+      service:
+        name: "{{ item }}"
+        enabled: yes
+        state: started
+      loop:
+        - httpd
+        - haproxy
+
+    - name: Create doc directory for ignition
+      become: yes
+      file:
+        path: /var/www/html/ignition
+        state: directory
+        mode: 0755

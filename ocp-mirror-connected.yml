@@ -1,0 +1,51 @@
+---
+- name: Mirror ocp release images to local registry
+  hosts: registry
+
+  vars_files:
+    - vars/quay-registry-vars.yml
+    - vars/mirror-vars.yml
+
+  tasks:
+    - name: Create local directory to download images
+      file:
+        path: "{{ item }}"
+        state: directory
+      loop:
+        - "{{ removable_media_path }}"
+        - "{{ removable_media_path }}/downloads"
+
+    - name: Download binaries for release version
+      become: yes
+      get_url:
+        url: http://mirror.openshift.com/pub/openshift-v4/clients/ocp/{{ ocp_release }}/{{ item }}-linux-{{ ocp_release }}.tar.gz
+        dest: "{{ removable_media_path }}/downloads"
+      loop:
+        - openshift-client
+        - openshift-install
+
+    - name: Extract OpenShift binaries to host
+      become: yes
+      unarchive:
+        src: "{{ removable_media_path }}/downloads/{{ item }}-linux-{{ ocp_release }}.tar.gz"
+        remote_src: yes
+        dest: "{{ bin_dir }}"
+        exclude:
+          - README.md
+          - kubectl
+      loop:
+        - openshift-client
+        - openshift-install
+
+    - name: Sync images to local directory
+      command: >
+        oc adm release mirror -a {{ cloud_secret }} --to-dir {{ removable_media_path }}/mirror
+        quay.io/{{ product_repo }}/{{ release_name }}:{{ ocp_release }}-{{ arch }}
+      tags: [never]
+
+    - name: Create tar file to transfer to high-side
+      archive:
+        path: 
+          - "{{ removable_media_path }}/downloads"
+          - "{{ removable_media_path }}/mirror"
+        dest: "{{ bundle_file }}"

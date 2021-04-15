@@ -1,0 +1,40 @@
+required_pkgs:
+- podman
+- httpd-tools
+
+base_dir: /tmp/quay
+postgresql_dir: "{{ base_dir }}/postgresql-quay"
+quay_config_dir: "{{ base_dir }}/config"
+quay_storage_dir: "{{ base_dir }}/storage"
+local_authfile: "{{ base_dir }}/myauth.json"
+
+registry_fqdn: registry.example.com
+registry_ip: 192.168.122.2
+
+postgresql_ip: 10.88.0.6
+postgresql_user: quayuser
+postgresql_pass: quaypass       # should be vaulted
+postgresql_db: quay
+postgresql_admin_pass: adminpassword    # should be vaulted
+postgresql_port: 5432
+
+redis_ip: 10.88.0.7
+redis_password: strongpassword  # should be vaulted
+redis_port: 6379
+
+quay_host_connected: true
+quay_config_port: 8080
+quay_port: 8443
+
+cloud_secret: /path/to/pullsecret
+
+# Cleanup vars
+#
+clean_images: yes
+clean_data: yes
+clean_bundle: yes
+tar_dir: /tmp
+tar_images:
+  - "{{ tar_dir }}/postgresql.tar"
+  - "{{ tar_dir }}/redis.tar"
+  - "{{ tar_dir }}/quay.tar"

@@ -1,0 +1,59 @@
+---
+- name: Mirror ocp release images to local registry
+  hosts: registry
+
+  vars_files:
+    - vars/quay-registry-vars.yml
+    - vars/mirror-vars.yml
+
+  tasks:
+    - name: Extract the release bundle
+      unarchive:
+        src: "{{ bundle_file }}"
+        remote_src: yes
+        dest: "{{ removable_media_path }}"
+        creates: "{{ removable_media_path }}/downloads/openshift-client-linux-{{ ocp_release }}.tar.gz"
+
+    - name: Install binaries for {{ ocp_release }}
+      become: yes
+      unarchive:
+        src: "{{ removable_media_path }}/downloads/{{ item }}-linux-{{ ocp_release }}.tar.gz"
+        remote_src: yes
+        dest: /usr/bin
+        exclude:
+          - README.md
+          - kubectl
+      loop:
+        - openshift-client
+        - openshift-install
+
+    - name: Get user secret from cloud.redhat.com
+      set_fact:
+        cloud_secret: "{{ lookup('file', cloud_secret) }}"
+
+    - name: Create dictionary with auth and email for local registry
+      set_fact:
+        patch_creds:
+          auth: "{{ registry_creds|b64encode }}"
+          email: "admin@local.lab"
+    
+    - name: Create temporary list with a dictionary item for local registry using previous dictionary as value
+      set_fact:
+        local_creds:
+          - key: "{{ local_registry }}"
+            value: "{{ patch_creds }}"
+
+    - name: Convert the temporary list into an actual dictionary
+      set_fact:
+        patch_creds:
+          auths: "{{ local_creds|items2dict }}"
+           
+    - name: Create a merged pull secret with cloud secret and local registry secret
+      copy:
+        content: "{{ cloud_secret|combine(patch_creds, recursive=True) }}"
+        dest: "{{ merged_secret }}"
+
+    - name: Sync from local dir to registry
+      command: >
+        oc image mirror -a {{ merged_secret }} --from-dir {{ removable_media_path }}/mirror
+        file://openshift/release:{{ ocp_release }}* {{ local_registry }}/{{ local_repository }}

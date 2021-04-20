@@ -1,0 +1,58 @@
+---
+- name: Mirror operator images to local disk
+  hosts: jumpbox
+
+  vars_files:
+    - vars/olm-mirror.yml
+
+  tasks:
+    - name: Cleanup bundle directory
+      when: cleanup
+      file:
+        path: "{{ bundle_dir }}"
+        state: absent
+
+    - name: Create bundle directory
+      file:
+        path: "{{ bundle_dir }}"
+        state: directory
+
+    - name: Mirror the operators one at a time to work around a bug
+      when: operator.mirror
+      include_tasks: olm-mirror-operator-connected.yml
+      loop: "{{ operator_list }}"
+      loop_control:
+        loop_var: operator
+
+    - name: Prune the catalog image to include all operators
+      command: >
+        opm index prune
+        -f {{ rh_operator_image }} -t {{ local_registry }}/{{ local_namespace }}/{{ rh_operator_image|basename }}
+        -p "{{ operator_list|map(attribute='name')|join(',') }}"
+      args:
+        chdir: "{{ mirror_dir }}"
+    
+    - name: Clean the old catalog image
+      file:
+        path: "{{ bundle_dir }}/{{ rh_operator_image.split(':')[0]|basename }}.tar"
+        state: absent
+
+    - name: Save the custom catalog image to transfer to disconnected registry
+      command: podman save {{ local_registry }}/{{ local_namespace }}/{{ rh_operator_image|basename }} -o "{{ bundle_dir }}/{{ rh_operator_image.split(':')[0]|basename }}.tar"
+    
+    - name: Get dangling images from multiple prune operations
+      command: podman images --filter dangling=true -q
+      register: dangling
+    
+    - name: Remove dangling images
+      command: podman rmi -f {{ image }}
+      loop: "{{ dangling['stdout_lines'] }}"
+      loop_control:
+        loop_var: image
+
+    - name: Bundle the operator files
+      archive:
+        path: 
+          - "{{ bundle_dir }}/olm-{{ ose_release }}-*"
+          - "{{ bundle_dir }}/{{ rh_operator_image|basename }}.tar"
+        dest: "{{ bundle_dir }}/operators-olm-{{ ose_release }}.tar.gz"

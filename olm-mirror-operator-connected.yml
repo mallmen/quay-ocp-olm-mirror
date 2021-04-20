@@ -1,0 +1,65 @@
+- name: Find old index_tmp directories
+  find:
+    paths: "."
+    patterns: "index_tmp*"
+    use_regex: yes
+    file_type: directory
+    recurse: no
+  register: index_tmp
+
+- name: Delete old index_tmp directories
+  when: index_tmp.matched > 0
+  become: yes
+  file:
+    path: "{{ index_dir }}"
+    state: absent
+  loop: "{{ index_tmp.files|map(attribute='path')|list }}"
+  loop_control:
+    loop_var: index_dir
+
+- name: Remove old directories
+  become: yes
+  file:
+    path: "{{ mirror_dir }}"
+    state: absent
+
+- name: Create directory to mirror in
+  file:
+    path: "{{ mirror_dir }}"
+    state: directory
+
+- name: Mirror {{ operator.name }}
+  when: operator.mirror
+  block:
+    - name: Prune the catalog image to include only {{ operator.name }}
+      command: >
+        opm index prune 
+        -f {{ rh_operator_image }} -t {{ local_registry }}/{{ local_namespace }}/{{ rh_operator_image|basename }}
+        -p "{{ operator.name }}"
+    
+    - name: Push the custom catalog image to disconnected registry
+      command: podman push --authfile {{ creds_file }} {{ local_registry }}/{{ local_namespace }}/{{ rh_operator_image|basename }}
+    
+    - name: Get dangling images from multiple prune operations
+      command: podman images --filter dangling=true -q
+      register: dangling
+    
+    - name: Remove dangling images
+      command: podman rmi -f {{ image }}
+      loop: "{{ dangling['stdout_lines'] }}"
+      loop_control:
+        loop_var: image
+    
+    - name: Mirror {{ operator.name }} content to disk
+      command: >
+        oc adm catalog mirror {{ local_registry }}/{{ local_namespace }}/{{ rh_operator_image|basename }}
+        file://mirror -a {{ creds_file }} --index-filter-by-os='linux/amd64'
+      args:
+        chdir: "{{ mirror_dir }}"
+    
+    - name: Create {{ operator.name }} tar file to transfer
+      archive:
+        path: 
+          - "{{ mirror_dir }}/v2"
+          - "{{ mirror_dir }}/manifests-*"
+        dest: "{{ bundle_dir }}/olm-4.6-{{ operator.name }}.gz"

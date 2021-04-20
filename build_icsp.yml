@@ -1,0 +1,5 @@
+- set_fact:
+    _file1: "{{ lookup('file', icsp_file)|from_yaml }}"
+
+- set_fact:
+    repositoryDigestMirrors: "{{ repositoryDigestMirrors + _file1.spec.repositoryDigestMirrors }}"

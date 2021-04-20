@@ -1,0 +1,24 @@
+operator_list:
+  - {'name': cluster-logging, 'mirror': no}
+  - {'name': compliance-operator, 'mirror': no}
+  - {'name': elasticsearch-operator, 'mirror': no}
+  - {'name': file-integrity-operator, 'mirror': no}
+  - {'name': local-storage-operator, 'mirror': no}
+  - {'name': quay-operator, 'mirror': no}
+  - {'name': kiali-ossm, 'mirror': no}
+  - {'name': jaeger-product, 'mirror': no}
+  - {'name': servicemeshoperator, 'mirror': no}
+
+cleanup: no
+mirror_dir: /tmp/olm-mirror
+bundle_dir: /tmp/bundle
+operator_bundle: /tmp/operators-olm-4.6.tar.gz
+
+ose_release: 4.6
+rh_catalog_image: registry.redhat.io/redhat/redhat-operator-index:v{{ ose_release }}
+local_registry: registry.ds.local.lab:8443
+local_namespace: olm-4.6
+creds_file: /path/to/creds
+
+tmp_icsp: imageContentSourcePolicy.yaml
+kubeconfig: ~/.kube/kubeconfig

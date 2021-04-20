@@ -1,0 +1,6 @@
+apiVersion: operator.openshift.io/v1alpha1
+kind: ImageContentSourcePolicy
+metadata:
+  name: olm-4.6-redhat-operator-index
+spec:
+  repositoryDigestMirrors:

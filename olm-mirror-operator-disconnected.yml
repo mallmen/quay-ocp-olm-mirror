@@ -1,0 +1,70 @@
+- name: Import operator for {{ operator.name }}
+  when: operator.mirror
+  block:
+    - name: Remove old directories
+      become: yes
+      file:
+        path: "{{ bundle_dir }}/v2"
+        state: absent
+    
+    - name: Extract {{ operator.name }}
+      when: operator.mirror
+      unarchive:
+        src: "{{ bundle_dir }}/olm-{{ ose_release }}-{{ operator.name }}.gz"
+        dest: "{{ bundle_dir }}"
+    
+    - name: Find manifests directory
+      find:
+        paths: "{{ bundle_dir }}"
+        patterns: "manifests-redhat-operator-index*"
+        use_regex: yes
+        file_type: directory
+        recurse: no
+      register: manifests_dirs
+    
+    - name: Remove manifests directory
+      when: manifests_dirs.matched > 0
+      become: yes
+      file:
+        path: "{{ manifests_dir }}"
+        state: absent
+      loop: "{{ manifests_dirs.files|map(attribute='path')|list }}"
+      loop_control:
+        loop_var: manifests_dir
+    
+    - name: Find directories in the mirror data
+      find:
+        paths: "{{ bundle_dir }}/v2/mirror"
+        file_type: directory
+        excludes: '{{ local_namespace }}'
+        recurse: no
+      register: sub_dirs
+    
+    - name: Create links in redhat-operator-index back to operator dirs
+      file:
+        path: "{{ sub_dir }}/../{{ local_namespace }}/redhat-operator-index/{{ sub_dir|basename }}"
+        src: "../../{{ sub_dir|basename }}"
+        state: link
+      loop: "{{ sub_dirs.files|map(attribute='path')|list }}"
+      loop_control:
+        loop_var: sub_dir
+    
+    - name: Mirror {{ operator.name }} content from disk to registry
+      command: >
+        oc adm catalog mirror -a {{ creds }}
+        file://mirror/{{ local_namespace }}/{{ rh_catalog_image|basename }} {{ local_registry }}/{{ local_namespace }}
+      args:
+        chdir: "{{ bundle_dir }}"
+
+    - find:
+        paths: "{{ bundle_dir }}/manifests-{{ local_namespace }}"
+        recurse: no
+        file_type: directory
+      register: directory
+
+    - name: Update imageContentSourcePolicy
+      when: directory.matched == 1
+      replace:
+        path: "{{ directory.files[0].path }}/imageContentSourcePolicy.yaml"
+        regexp: "source: mirror/{{ local_namespace }}/{{ rh_catalog_image.split(':')[0]|basename }}"
+        replace: 'registry.redhat.io'

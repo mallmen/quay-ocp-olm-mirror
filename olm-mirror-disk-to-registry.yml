@@ -1,0 +1,130 @@
+---
+- name: Mirror operator images from disk to registry
+  hosts: registry
+
+  vars_files:
+    - vars/olm-mirror.yml
+
+  tasks:
+    - name: Cleanup bundle directory
+      when: cleanup
+      file:
+        path: "{{ bundle_dir }}"
+        state: absent
+
+    - name: Create bundle directory
+      file:
+        path: "{{ bundle_dir }}"
+        state: directory
+
+    - name: Extract the operator bundle
+      when: cleanup
+      unarchive:
+        src: "{{ operator_bundle }}"
+        dest: "{{ bundle_dir }}"
+
+    - name: Load the custom catalog image
+      command: podman load -i "{{ bundle_dir }}/{{ rh_catalog_image.split(':')[0]|basename }}.tar"
+ 
+    - name: Push the custom catalog image to disconnected registry
+      command: >
+        podman push --authfile {{ creds_file }} 
+        "{{ local_registry }}/{{ local_namespace }}/{{ rh_catalog_image|basename }}"
+    
+    - name: Loop through the operators one at a time due to a bug
+      when: operator.mirror
+      include_tasks: olm-mirror-operator-disconnected.yml
+      loop: "{{ operator_list }}"
+      loop_control:
+        loop_var: operator
+
+    - name: Find manifests directory
+      find:
+        paths: "{{ bundle_dir }}"
+        patterns: "manifests-redhat-operator-index*"
+        use_regex: yes
+        file_type: directory
+        recurse: no
+      register: manifests_dirs
+    
+    - name: Remove manifests directory
+      when: manifests_dirs.matched > 0
+      become: yes
+      file:
+        path: "{{ manifests_dir }}"
+        state: absent
+      loop: "{{ manifests_dirs.files|map(attribute='path')|list }}"
+      loop_control:
+        loop_var: manifests_dir
+
+    - name: Clean up residual temporary repository data
+      become: yes
+      file:
+        path: "{{ bundle_dir }}/v2"
+        state: absent
+
+    - name: Find temporary index.db working directories
+      find:
+        paths: /tmp
+        patterns: "[0-9]{9}"
+        use_regex: yes
+        file_type: directory
+        recurse: no
+      register: working_dirs
+
+    - name: Cleanup temporary index.db working directories
+      file:
+        path: "{{ working_dir }}"
+        state: absent
+      loop: "{{ working_dirs.files|map(attribute='path')|list }}"
+      loop_control:
+        loop_var: working_dir
+
+    - name: Get imagecontentsourcepolicies
+      k8s_info:
+        kubeconfig: "{{ kubeconfig }}"
+        api_version: v1alpha1
+        name: "{{ local_namespace }}-{{ rh_catalog_image.split(':')[0]|basename }}"
+        kind: ImageContentSourcePolicy
+      register: icsp
+
+    - set_fact:
+        repositoryDigestMirrors: "{{ [] if icsp.resources|count == 0 else icsp.resources[0].spec.repositoryDigestMirrors }}"
+
+    - name: Find the {{ tmp_icsp }} files
+      find:
+        path: "{{ bundle_dir }}/manifests-{{ local_namespace }}"
+        patterns: "{{ tmp_icsp }}"
+        recurse: yes
+      register: icsp_files
+
+    - name: Build new repositoryDigestMirrors for imagecontentsourcepolicy
+      include_tasks: build_icsp.yml
+      loop: "{{ icsp_files.files|map(attribute='path')|list }}"
+      loop_control:
+         loop_var: icsp_file
+
+    - name: Set string to replace in generated icsp files
+      set_fact:
+        replace_str: "{{ 'mirror/' + local_namespace + '/' + rh_catalog_image.split(':')[0]|basename }}"
+
+    - name: Get the base template for the new ImageContentSourcePolicy definition
+      set_fact:
+        icsp: "{{ lookup('file', 'files/olm-icsp.yml')|from_yaml }}"
+
+    - name: Build patch for updated ImageContentSourcePolicy
+      set_fact:
+        patch:
+          spec:
+            repositoryDigestMirrors: "{{ repositoryDigestMirrors|replace(replace_str, 'registry.redhat.io') }}"
+
+    - name: Write the patched ImageContentSourcePolicy definition to disk
+      copy:
+        content: "{{ icsp | combine(patch, recursive=True)|to_yaml }}"
+        dest: /tmp/olm-icsp.yml
+
+    - name: Apply the new ImageContentSourcePolicy to the cluster
+      k8s:
+        kubeconfig: "{{ kubeconfig }}"
+        state: present
+        src: /tmp/olm-icsp.yml

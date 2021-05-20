@@ -34,11 +34,11 @@
     - name: Prune the catalog image to include only {{ operator.name }}
       command: >
         opm index prune 
-        -f {{ rh_operator_image }} -t {{ local_registry }}/{{ local_namespace }}/{{ rh_operator_image|basename }}
+        -f {{ rh_catalog_image }} -t {{ local_registry }}/{{ local_namespace }}/{{ rh_catalog_image|basename }}
         -p "{{ operator.name }}"
     
     - name: Push the custom catalog image to disconnected registry
-      command: podman push --authfile {{ creds_file }} {{ local_registry }}/{{ local_namespace }}/{{ rh_operator_image|basename }}
+      command: podman push --authfile {{ pullsecret }} {{ local_registry }}/{{ local_namespace }}/{{ rh_catalog_image|basename }}
     
     - name: Get dangling images from multiple prune operations
       command: podman images --filter dangling=true -q
@@ -52,8 +52,8 @@
     
     - name: Mirror {{ operator.name }} content to disk
       command: >
-        oc adm catalog mirror {{ local_registry }}/{{ local_namespace }}/{{ rh_operator_image|basename }}
-        file://mirror -a {{ creds_file }} --index-filter-by-os='linux/amd64'
+        oc adm catalog mirror {{ local_registry }}/{{ local_namespace }}/{{ rh_catalog_image|basename }}
+        file://mirror -a {{ pullsecret }} --index-filter-by-os='linux/amd64'
       args:
         chdir: "{{ mirror_dir }}"
     
@@ -62,4 +62,4 @@
         path: 
           - "{{ mirror_dir }}/v2"
           - "{{ mirror_dir }}/manifests-*"
-        dest: "{{ bundle_dir }}/olm-4.6-{{ operator.name }}.gz"
+        dest: "{{ bundle_dir }}/olm-{{ ocp_release }}-{{ operator.name }}.gz"

@@ -1,4 +1,0 @@
-[registry]
-localhost
-[registry:vars]
-ansible_connection=local

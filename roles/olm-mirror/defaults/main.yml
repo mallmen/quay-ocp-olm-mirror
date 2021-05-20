@@ -1,0 +1,24 @@
+operator_list:
+  - {'name': cluster-logging, 'mirror': yes}
+  - {'name': compliance-operator, 'mirror': no}
+  - {'name': elasticsearch-operator, 'mirror': yes}
+  - {'name': file-integrity-operator, 'mirror': yes}
+  - {'name': local-storage-operator, 'mirror': yes}
+  - {'name': quay-operator, 'mirror': yes}
+  - {'name': kiali-ossm, 'mirror': yes}
+  - {'name': jaeger-product, 'mirror': yes}
+  - {'name': servicemeshoperator, 'mirror': yes}
+
+cleanup: no
+mirror_dir: /tmp/olm-mirror
+bundle_dir: /tmp/bundle
+operator_bundle: /tmp/operators-olm-{{ ocp_release }}6.tar.gz
+
+ocp_release: 4.6
+rh_catalog_image: registry.redhat.io/redhat/redhat-operator-index:v{{ ocp_release }}
+local_registry: registry.ocp4.example.com:8443
+local_namespace: "olm-{{ ocp_release }}"
+pullsecret: "{{ lookup('env', 'XDG_RUNTIME_DIR') }}/containers/auth.json"
+
+tmp_icsp: imageContentSourcePolicy.yaml
+kubeconfig: ~/.kube/kubeconfig

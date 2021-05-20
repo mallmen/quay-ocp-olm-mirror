@@ -1,6 +1,6 @@
 ---
 - name: Mirror ocp release images to local registry
-  hosts: registry
+  hosts: connected
 
   vars_files:
     - vars/quay-registry-vars.yml
@@ -41,7 +41,7 @@
       command: >
         oc adm release mirror -a {{ cloud_secret }} --to-dir {{ removable_media_path }}/mirror
         quay.io/{{ product_repo }}/{{ release_name }}:{{ ocp_release }}-{{ arch }}
-      tags: [never]
+        --release-image-signature-to-dir {{ removable_media_path }}/releases
 
     - name: Create tar file to transfer to high-side
       archive:

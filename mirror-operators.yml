@@ -1,0 +1,14 @@
+---
+- name: Mirror OpenShift operators
+  hosts: connected
+
+  vars:
+    connected: yes
+    disconnected: no
+
+  tasks:
+    - name: Mirror operators from internet to disk
+      when: connected
+      include_role:
+        name: olm-mirror
+        tasks_from: mirror-to-disk.yml

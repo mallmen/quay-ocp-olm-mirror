@@ -8,7 +8,7 @@ quay_config_dir: "{{ base_dir }}/config"
 quay_storage_dir: "{{ base_dir }}/storage"
 local_authfile: "{{ base_dir }}/myauth.json"
 
-registry_fqdn: registry.example.com
+registry_fqdn: registry.ocp4.example.com
 registry_ip: 192.168.122.2
 
 postgresql_ip: 10.88.0.6
@@ -26,7 +26,7 @@ quay_host_connected: true
 quay_config_port: 8080
 quay_port: 8443
 
-cloud_secret: /path/to/pullsecret
+cloud_secret: /tmp/pull-secret
 
 # Cleanup vars
 #

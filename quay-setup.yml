@@ -57,24 +57,36 @@
         src: ssl-ca.cnf.j2
         dest: "{{ quay_config_dir }}/ssl-ca.cnf"
 
-    - name: Create a self-signed certificate with CA
-      command:
-        cmd: openssl req -newkey rsa:4096 -nodes -sha256 -keyout ssl.key -x509 -days 365 -out ssl.cert -config ssl-ca.cnf
-        chdir: "{{ quay_config_dir }}"
-        creates: ssl.cert
+    - name: Create self-signed certificate if no signed certs exist
+      block:
+        - name: Create a self-signed certificate with CA
+          command:
+            cmd: openssl req -newkey rsa:4096 -nodes -sha256 -keyout ssl.key -x509 -days 365 -out ssl.cert -config ssl-ca.cnf
+            chdir: "{{ quay_config_dir }}"
+            creates: ssl.cert
 
-    - name: Copy certificate to trust-store
-      become: yes
+        - name: Copy certificate to trust-store
+          become: yes
+          copy:
+            src: "{{ quay_config_dir }}/ssl.cert"
+            remote_src: yes
+            dest: /etc/pki/ca-trust/source/anchors/ssl.cert
+          register: copy_cert
+
+        - name: Update trust store
+          when: copy_cert.changed
+          become: yes
+          command: update-ca-trust
+
+    - name: Copy signed ssl certs if exist
       copy:
-        src: "{{ quay_config_dir }}/ssl.cert"
-        remote_src: yes
-        dest: /etc/pki/ca-trust/source/anchors/ssl.cert
-      register: copy_cert
-
-    - name: Update trust store
-      when: copy_cert.changed
-      become: yes
-      command: update-ca-trust
+        src: "{{ cert_file.name }}.{{ cert_file.ext }}"
+        dest: "{{ quay_config_dir }}/ssl.{{ cert_file.ext }}"
+      loop:
+        - {name: registry, ext: crt}
+        - {name: registry, ext: key}
+      loop_control:
+        loop_var: cert_file
 
     - name: Adjust cert and key perms to what Quay wants
       file:

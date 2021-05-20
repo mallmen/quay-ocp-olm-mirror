@@ -2,14 +2,14 @@ bin_dir: /usr/bin
 removable_media_path: /tmp
 bundle_file: "{{ removable_media_path }}/bundle-{{ ocp_release }}.tar.gz"
 
-ocp_release: 4.6.23
+ocp_release: 4.7.9
 local_registry: "{{ registry_fqdn }}:{{ quay_port }}"
-local_repository: ocp4/ocp-release      # needs to exist already
+local_repository: ocp-release      # needs to exist already
 product_repo: openshift-release-dev
 release_name: ocp-release
 arch: x86_64
 cloud_secret: "{{ removable_media_path }}/pull-secret"
 merged_secret: "{{ removable_media_path }}/merged-pull-secret.json"
-disconnected_registry_user: quayadmin    # needs to be able to write local_repository
-disconnected_registry_pass: password
+disconnected_registry_user: admin    # needs to be able to write local_repository
+disconnected_registry_pass: redhat12
 registry_creds: "{{ disconnected_registry_user }}:{{ disconnected_registry_pass }}"

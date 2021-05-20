@@ -1,0 +1,2 @@
+- name: Log into {{ registry.source }}
+  command: podman login -u {{ registry.username }} -p {{ registry.password }} {{ registry.source }}

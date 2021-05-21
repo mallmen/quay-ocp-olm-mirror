@@ -4,7 +4,6 @@
 
   vars:
     connected: yes
-    disconnected: no
 
   tasks:
     - name: Mirror operators from internet to disk

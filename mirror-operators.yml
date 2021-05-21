@@ -12,3 +12,9 @@
       include_role:
         name: olm-mirror
         tasks_from: mirror-to-disk.yml
+
+    - name: Mirror operators from disk to disconnected registry
+      when: not connected
+      include_role:
+        name: olm-mirror
+        tasks_from: mirror-to-registry.yml

@@ -2,14 +2,18 @@ bin_dir: /usr/bin
 removable_media_path: /tmp
 bundle_file: "{{ removable_media_path }}/bundle-{{ ocp_release }}.tar.gz"
 
+# These define what we are mirroring
 ocp_release: 4.7.9
-local_registry: "{{ registry_fqdn }}:{{ quay_port }}"
-local_repository: ocp-release      # needs to exist already
 product_repo: openshift-release-dev
 release_name: ocp-release
 arch: x86_64
-cloud_secret: "{{ removable_media_path }}/pull-secret"
-merged_secret: "{{ removable_media_path }}/merged-pull-secret.json"
+
+# These define where we are mirroring to
+local_registry: registry.ocp4.example.com:8443
+local_repository: ocp4/release      # needs to exist already
 disconnected_registry_user: admin    # needs to be able to write local_repository
 disconnected_registry_pass: redhat12
 registry_creds: "{{ disconnected_registry_user }}:{{ disconnected_registry_pass }}"
+
+cloud_secret: "{{ removable_media_path }}/pull-secret"
+merged_secret: "{{ removable_media_path }}/merged-pull-secret.json"

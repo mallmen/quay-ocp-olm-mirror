@@ -58,6 +58,7 @@
         dest: "{{ quay_config_dir }}/ssl-ca.cnf"
 
     - name: Create self-signed certificate if no signed certs exist
+      when: use_self_signed
       block:
         - name: Create a self-signed certificate with CA
           command:
@@ -79,11 +80,12 @@
           command: update-ca-trust
 
     - name: Copy signed ssl certs if exist
+      when: not use_self_signed
       copy:
         src: "{{ cert_file.name }}.{{ cert_file.ext }}"
         dest: "{{ quay_config_dir }}/ssl.{{ cert_file.ext }}"
       loop:
-        - {name: registry, ext: crt}
+        - {name: registry, ext: cert}
         - {name: registry, ext: key}
       loop_control:
         loop_var: cert_file

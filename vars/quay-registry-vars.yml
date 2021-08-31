@@ -10,6 +10,7 @@ local_authfile: "{{ base_dir }}/myauth.json"
 
 registry_fqdn: registry.ocp4.example.com
 registry_ip: 192.168.122.2
+use_self_signed: true
 
 postgresql_ip: 10.88.0.6
 postgresql_user: quayuser

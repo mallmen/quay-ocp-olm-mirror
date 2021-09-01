@@ -64,5 +64,5 @@
   archive:
     path: 
       - "{{ bundle_dir }}/olm-{{ ocp_release }}-*"
-      - "{{ bundle_dir }}/{{ rh_catalog_image|basename }}.tar"
+      - "{{ bundle_dir }}/{{ rh_catalog_image.split(':')[0]|basename }}.tar"
     dest: "{{ bundle_dir }}/operators-olm-{{ ocp_release }}.tar.gz"

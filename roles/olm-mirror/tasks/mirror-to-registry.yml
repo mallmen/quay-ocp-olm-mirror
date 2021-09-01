@@ -1,3 +1,12 @@
+- name: Set login creds for {{ local_registry }}
+  include_role:
+    name: podman-login
+  vars:
+    registry:
+      source: "{{ local_registry }}"
+      username: "{{ quay_user }}"
+      password: "{{ quay_pass }}"
+
 - name: Cleanup bundle directory
   when: cleanup
   file:
@@ -8,6 +17,11 @@
   file:
     path: "{{ bundle_dir }}"
     state: directory
+
+- name: Ensure no old extracted operators are present
+  file:
+    path: "{{ bundle_dir }}/manifests-{{ local_namespace }}"
+    state: absent
 
 - name: Extract the operator bundle
   when: cleanup
@@ -20,34 +34,15 @@
 
 - name: Push the custom catalog image to disconnected registry
   command: >
-    podman push --authfile {{ creds_file }} 
+    podman push --authfile {{ pullsecret }} 
     "{{ local_registry }}/{{ local_namespace }}/{{ rh_catalog_image|basename }}"
 
 - name: Loop through the operators one at a time due to a bug
   when: operator.mirror
-  include_tasks: olm-mirror-operator-disconnected.yml
+  include_tasks: mirror-operator-disconnected.yml
   loop: "{{ operator_list }}"
   loop_control:
     loop_var: operator
-
-- name: Find manifests directory
-  find:
-    paths: "{{ bundle_dir }}"
-    patterns: "manifests-redhat-operator-index*"
-    use_regex: yes
-    file_type: directory
-    recurse: no
-  register: manifests_dirs
-
-- name: Remove manifests directory
-  when: manifests_dirs.matched > 0
-  become: yes
-  file:
-    path: "{{ manifests_dir }}"
-    state: absent
-  loop: "{{ manifests_dirs.files|map(attribute='path')|list }}"
-  loop_control:
-    loop_var: manifests_dir
 
 - name: Clean up residual temporary repository data
   become: yes
@@ -102,7 +97,7 @@
 
 - name: Get the base template for the new ImageContentSourcePolicy definition
   set_fact:
-    icsp: "{{ lookup('file', 'files/olm-icsp.yml')|from_yaml }}"
+    icsp: "{{ lookup('template', 'templates/olm-icsp.yml')|from_yaml }}"
 
 - name: Build patch for updated ImageContentSourcePolicy
   set_fact:
@@ -112,7 +107,7 @@
 
 - name: Write the patched ImageContentSourcePolicy definition to disk
   copy:
-    content: "{{ icsp | combine(patch, recursive=True)|to_yaml }}"
+    content: "{{ icsp | combine(patch, recursive=True)|to_nice_yaml }}"
     dest: /tmp/olm-icsp.yml
 
 - name: Apply the new ImageContentSourcePolicy to the cluster

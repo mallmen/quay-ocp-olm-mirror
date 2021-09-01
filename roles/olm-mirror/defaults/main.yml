@@ -1,6 +1,6 @@
 operator_list:
   - {'name': cluster-logging, 'mirror': yes}
-  - {'name': compliance-operator, 'mirror': no}
+  - {'name': compliance-operator, 'mirror': yes}
   - {'name': elasticsearch-operator, 'mirror': yes}
   - {'name': file-integrity-operator, 'mirror': yes}
   - {'name': local-storage-operator, 'mirror': yes}
@@ -12,9 +12,9 @@ operator_list:
 cleanup: no
 mirror_dir: /tmp/olm-mirror
 bundle_dir: /tmp/bundle
-operator_bundle: /tmp/operators-olm-{{ ocp_release }}6.tar.gz
+operator_bundle: /tmp/operators-olm-{{ ocp_release }}.tar.gz
 
-ocp_release: 4.6
+ocp_release: 4.8
 rh_catalog_image: registry.redhat.io/redhat/redhat-operator-index:v{{ ocp_release }}
 local_registry: registry.ocp4.example.com:8443
 local_namespace: "olm-{{ ocp_release }}"

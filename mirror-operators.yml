@@ -1,6 +1,6 @@
 ---
 - name: Mirror OpenShift operators
-  hosts: connected
+  hosts: "{{ run_hosts | default('connected') }}"
 
   vars_files:
     - vars/users.yaml

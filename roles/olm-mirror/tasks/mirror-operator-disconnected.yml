@@ -34,6 +34,7 @@
       loop: "{{ manifests_dirs.files|map(attribute='path')|list }}"
       loop_control:
         loop_var: manifests_dir
+        label: "{{ manifests_dir|basename }}"
     
     - name: Create {{ operator.name }} manifest
       command: >

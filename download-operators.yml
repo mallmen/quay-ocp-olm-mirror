@@ -1,0 +1,12 @@
+---
+- name: Mirror OpenShift operators
+  hosts: connected
+
+  vars_files:
+    - vars/users.yaml
+
+  tasks:
+    - name: Mirror operators from internet to disk
+      include_role:
+        name: olm-mirror
+        tasks_from: mirror-to-disk.yml

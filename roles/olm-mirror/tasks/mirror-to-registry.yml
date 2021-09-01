@@ -66,6 +66,7 @@
   loop: "{{ working_dirs.files|map(attribute='path')|list }}"
   loop_control:
     loop_var: working_dir
+    label: "{{ working_dir|basename }}"
 
 - name: Get imagecontentsourcepolicies
   k8s_info:
@@ -90,6 +91,7 @@
   loop: "{{ icsp_files.files|map(attribute='path')|list }}"
   loop_control:
      loop_var: icsp_file
+     label: "{{ icsp_file|basename }}"
 
 - name: Set string to replace in generated icsp files
   set_fact:

@@ -5,6 +5,9 @@
   vars_files:
     - vars/quay-registry-vars.yml
 
+  environment:
+    REGISTRY_AUTH_FILE: "{{ cloud_secret }}"
+
   tasks:
     - name: Install required packages
       when: quay_host_connected
@@ -52,19 +55,27 @@
         - "{{ postgresql_port }}"
         - "{{ redis_port }}"
 
-    - name: Create a SAN cert config file
-      template:
-        src: ssl-ca.cnf.j2
-        dest: "{{ quay_config_dir }}/ssl-ca.cnf"
-
     - name: Create self-signed certificate if no signed certs exist
       when: use_self_signed
       block:
+        - name: Create a SAN cert config file
+          template:
+            src: ssl-ca.cnf.j2
+            dest: "{{ quay_config_dir }}/ssl-ca.cnf"
+
         - name: Create a self-signed certificate with CA
           command:
             cmd: openssl req -newkey rsa:4096 -nodes -sha256 -keyout ssl.key -x509 -days 365 -out ssl.cert -config ssl-ca.cnf
             chdir: "{{ quay_config_dir }}"
             creates: ssl.cert
+
+        - name: Adjust cert and key perms to what Quay wants
+          file:
+             path: "{{ quay_config_dir }}/{{ item }}"
+             mode: 0775
+          loop:
+             - ssl.cert
+             - ssl.key
 
         - name: Copy certificate to trust-store
           become: yes
@@ -79,24 +90,20 @@
           become: yes
           command: update-ca-trust
 
-    - name: Copy signed ssl certs if exist
+    - name: Copy signed ssl cert and key if exists
       when: not use_self_signed
-      copy:
-        src: "{{ cert_file.name }}.{{ cert_file.ext }}"
-        dest: "{{ quay_config_dir }}/ssl.{{ cert_file.ext }}"
-      loop:
-        - {name: registry, ext: cert}
-        - {name: registry, ext: key}
-      loop_control:
-        loop_var: cert_file
+      block:
+        - name: Copy signed cert
+          copy:
+            src: "{{ ssl_cert }}"
+            dest: "{{ quay_config_dir }}/ssl.cert"
+            mode: 0775
 
-    - name: Adjust cert and key perms to what Quay wants
-      file:
-         path: "{{ quay_config_dir }}/{{ item }}"
-         mode: 0775
-      loop:
-         - ssl.cert
-         - ssl.key
+        - name: Copy private key
+          copy:
+            src: "{{ ssl_key }}"
+            dest: "{{ quay_config_dir }}/ssl.key"
+            mode: 0775
 
     - name: Check if postgresql-quay container is running
       become: yes
@@ -116,13 +123,25 @@
       when: postgresql_quay_is_running is not defined or not postgresql_quay_is_running
       command: >
         podman run -d --name postgresql-quay {% if postgresql_ip is defined %} --ip {{ postgresql_ip }} {% endif %}
-        {% if quay_host_connected %} --authfile {{ cloud_secret }} {% endif %}
         -e POSTGRESQL_USER={{ postgresql_user }} -e POSTGRESQL_PASSWORD={{ postgresql_pass }}
         -e POSTGRESQL_DATABASE={{ postgresql_db }} -e POSTGRESQL_ADMIN_PASSWORD={{ postgresql_admin_pass }}
         -p {{ postgresql_port }}:{{ postgresql_port }} 
         -v {{ base_dir }}/postgresql-quay:/var/lib/pgsql/data:Z
         registry.redhat.io/rhel8/postgresql-10:1
       register: postgresql_quay_started
+
+#    - name: Run podman postgresql container
+#      become: yes
+#      when: postgresql_quay_is_running is not defined or not postgresql_quay_is_running
+#      command: >
+#        podman run -d --name postgresql-quay {% if postgresql_ip is defined %} --ip {{ postgresql_ip }} {% endif %}
+#        {% if quay_host_connected %} --authfile {{ cloud_secret }} {% endif %}
+#        -e POSTGRESQL_USER={{ postgresql_user }} -e POSTGRESQL_PASSWORD={{ postgresql_pass }}
+#        -e POSTGRESQL_DATABASE={{ postgresql_db }} -e POSTGRESQL_ADMIN_PASSWORD={{ postgresql_admin_pass }}
+#        -p {{ postgresql_port }}:{{ postgresql_port }} 
+#        -v {{ base_dir }}/postgresql-quay:/var/lib/pgsql/data:Z
+#        registry.redhat.io/rhel8/postgresql-10:1
+#      register: postgresql_quay_started
 
     - name: Pause to give database a change to start
       when: postgresql_quay_started.changed
@@ -155,10 +174,19 @@
       when: redis_is_running is not defined or not redis_is_running
       command: >
         podman run -d --name redis {% if redis_ip is defined %} --ip {{ redis_ip }} {% endif %}
-        {% if quay_host_connected %} --authfile {{ cloud_secret }} {% endif %}
         -e REDIS_PASSWORD={{ redis_password }} -p {{ redis_port }}:{{ redis_port }} 
         registry.redhat.io/rhel8/redis-5:1
       register: redis_started
+
+#   - name: Run podman redis container
+#      become: yes
+#      when: redis_is_running is not defined or not redis_is_running
+#      command: >
+#        podman run -d --name redis {% if redis_ip is defined %} --ip {{ redis_ip }} {% endif %}
+#        {% if quay_host_connected %} --authfile {{ cloud_secret }} {% endif %}
+#        -e REDIS_PASSWORD={{ redis_password }} -p {{ redis_port }}:{{ redis_port }} 
+#        registry.redhat.io/rhel8/redis-5:1
+#      register: redis_started
 
     - name: Setup quay config.yaml
       template:
@@ -183,8 +211,18 @@
       when: quay_is_running is not defined or not quay_is_running
       command: >
         podman run -d -p {{ quay_port }}:{{ quay_port }}
-        {% if quay_host_connected %} --authfile {{ cloud_secret }} {% endif %}
         --name quay -v {{ quay_config_dir }}:/conf/stack:Z 
         -v {{ quay_storage_dir }}:/datastorage:Z 
         registry.redhat.io/quay/quay-rhel8:v3.4.3
       register: quay_started
+
+#    - name: Run podman quay container
+#      become: yes
+#      when: quay_is_running is not defined or not quay_is_running
+#      command: >
+#        podman run -d -p {{ quay_port }}:{{ quay_port }}
+#        {% if quay_host_connected %} --authfile {{ cloud_secret }} {% endif %}
+#        --name quay -v {{ quay_config_dir }}:/conf/stack:Z 
+#        -v {{ quay_storage_dir }}:/datastorage:Z 
+#        registry.redhat.io/quay/quay-rhel8:v3.4.3
+#      register: quay_started

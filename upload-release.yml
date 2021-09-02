@@ -1,0 +1,9 @@
+---
+- name: Mirror OpenShift operators
+  hosts: disconnected
+
+  tasks:
+    - name: Mirror release from disk to disconnected registry
+      include_role:
+        name: ocp-mirror
+        tasks_from: mirror-to-registry.yml

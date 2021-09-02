@@ -1,0 +1,9 @@
+---
+- name: Mirror OpenShift operators
+  hosts: connected
+
+  tasks:
+    - name: Mirror release from internet to disk
+      include_role:
+        name: ocp-mirror
+        tasks_from: mirror-to-disk.yml

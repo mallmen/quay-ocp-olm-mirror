@@ -1,10 +1,10 @@
-connected:
+registry:
   hosts:
-    jumpbox.ds.local.lab:
+    localhost:
   vars:
     ansible_connection: local
-disconnected:
+connected:
   hosts:
-    registry.ocp4.example.com:
+    localhost:
   vars:
     ansible_connection: local

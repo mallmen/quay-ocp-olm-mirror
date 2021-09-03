@@ -10,8 +10,8 @@ This repository provides playbooks that will mirror the OpenShift release images
 > Tested with:
 >  * podman 2.2.1
 >  * RHEL 8.3
-2. Approximately 7G disk space available
-> This should be sufficient space to mirror one release version of OpenShift 4 to Quay.  More space will be required to mirror additional versions and/or mirror operators.
+2. Approximately 10G disk space available
+> This should be sufficient space to mirror one release version of OpenShift 4 to Quay (as of 4.8.2).  More space will be required to mirror additional versions and/or mirror operators.
 3. Mechanism to transfer bundle to disconnected network
 4. Host on disconnected network running Quay
 > Tested with:
@@ -19,38 +19,52 @@ This repository provides playbooks that will mirror the OpenShift release images
 
 ## Disconnected Prerequisites
 
-1. Quay credentials 
+1. Quay credentials
 2. Quay namespace and repository are already created
 3. Quay credentials have write access to repository
 
 ## Setup
 ### Update Ansible inventory
-In either `/etc/ansible/hosts` or a local `inventory.yml`, configure your inventory for your container host using a local connection.
+In either `/etc/ansible/hosts` or a local `inventory.yml`, configure your inventory for your container host using a local connection.  Substitute for `localhost` as appropriate for the environment. `connected` should have internet connectivity.  
 ```
 registry:
   hosts:
     localhost:
   vars:
     ansible_connection: local
+connected:
+  hosts:
+    localhost:
+  vars:
+    ansible_connection: local    
 ```
 ### Set Global Variables
-* OpenShift mirror variables
-> Pre-populated entries are set in **mirror-vars.yml** and are ready to be used.  However, the values should be customized to your particular environment.  These variables are used for downloading and building the disconnected registsry tar file and for populating the disconnected registry itself.
-1. `bin_dir`: Where to install `oc` and `openshift-install`
-2. `bundle_file`: Where bundle file is created to be transferred to disconnected registry host
-                  Where bundle file is located on disconnected registry host
-3. `removable_media_path`: Where temporary images are downloaded to create bundle file to transfer
-                           Where the bundle file is extracted on disconnected registry host
+> Pre-populated entries are set in `roles/ocp-mirror/defaults/main.yml` and are ready to be used.  However, the values should be customized to your particular environment.  These variables are used for downloading and building the disconnected registsry tar file and for populating the disconnected registry itself.  The default values may be overridden any place that takes higher precedence.
+1. `bin_dir`: Where to install `oc` and `openshift-install`, defaults to `/usr/bin`
+2. `bundle_file`: This represents 2 locations
+* Where bundle file is created locally on `connected` for transfer to `registry`
+* Where bundle file is located on `registry` to be uploaded 
+3. `removable_media_path`: 
+* Where temporary images are downloaded on `connected` to create bundle file to transfer
+* Where the bundle file is extracted on `registry` host for upload
 4. `ocp_release`: x.y.z for OpenShift release to mirror
 5. `local_repository`: namespace/repository in Quay to mirror *(**must already exist**)*
 6. `cloud_secret`: full path for pullsecret from [https://cloud.redhat.com](https://cloud.redhat.com)
 7. `merged_secret`: full path for merged pullsecret (cloud+disconnected_registry)
-8. `disconnected_registry_user`: your quay user
-9. `disconnected_registry_pass`: your quay password
 
-## Basic workflow
-Mirroring the OpenShift release images will be a two-stage operation.  First, run the `ocp-mirror-connected.yml` playbook.  This will create a tar file at `{{ bundle_file }}`.  Next, the tar.gz file should be transferred to `{{ bundle_file }}` on the disconneted registry host.  Ensure that the registry host has already been configured with a username/password and the namespace/reposistory with appropriate write permissions exists as defined in `mirror-vars.yml`.  Finally, the `ocp-mirror-disconnected.yml` playbook should be run on the disconnected registry.host.
-> NOTE: For test environments, the disconnected registry host does not have to actually be disconnected and may actually be the same host used to do the initial mirror to disk.
+### Username/Password Variables
+> The credentials for the Quay registry should be stored with `ansible-vault`
+1. `disconnected_registry_user`: your quay user
+2. `disconnected_registry_pass`: your quay password
+## Download Release Content
+Run the `download-release.yml` playbook on the `connected` host.  This will create a tar file at `{{ bundle_file }}`.  Next, the tar.gz file should be transferred to `{{ bundle_file }}` on the `registry` host.  
+
+## Upload Release Content
+### Prerequisites
+> Ensure the approriate information is configured as defined in `roles/ocp-mirror/defaults/main.yml` or the appropriate alternate location as required.
+1. `disconnected_registry_user` has already been created with `disconnected_registry_pass` in the registry on `registry` (for Quay this should be a super-user)    
+2. `local_repository` has been created on `registry` when using Quay.  This should be an `organization` and a `repository`.  Ensure these are created with the same user as `disconnected_registry_user` or that `disconnected_registry_user` has the appropriate write permissions to the `organization` and `repository`. 
+> NOTE: For test environments, the `registry` host does not have to actually be disconnected and may actually be the same host used to do the initial mirror to disk.
 
 ### OpenShift image mirror disk
 `ansible-playbook ocp-mirror-connected.yml` or `ansible-playbook -i inventory.yml ocp-mirror-connected.yml`

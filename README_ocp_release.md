@@ -19,6 +19,7 @@ This repository provides playbooks that will mirror the OpenShift release images
 1. Quay credentials
 2. Quay namespace and repository are already created
 3. Quay credentials have write access to repository
+4. Ensure certificate used by registry is trusted
 ## Setup
 ### Update Ansible inventory
 In either `/etc/ansible/hosts` or a local `inventory.yml`, configure your inventory for your container host using a local connection.  Substitute for `localhost` as appropriate for the environment. `connected` should have internet connectivity.  
@@ -46,7 +47,7 @@ connected:
 4. `ocp_release`: x.y.z for OpenShift release to mirror
 5. `local_repository`: namespace/repository in Quay to mirror *(**must already exist**)*
 6. `cloud_secret`: full path for pullsecret from [https://cloud.redhat.com](https://cloud.redhat.com)
-7. `merged_secret`: full path for merged pullsecret (cloud+disconnected_registry)
+7. `registry_secret`: full path to created disconnected registry pull secret
 
 ### Username/Password Variables
 > The credentials for the Quay registry should be stored with `ansible-vault`

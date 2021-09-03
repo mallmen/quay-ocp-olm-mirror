@@ -15,7 +15,7 @@ This repository provides a playbook that will deploy a standalone instance of Qu
 
 ## Disconnected Prerequisites
 
-1. If Quay will be running on a disconnected host, the required images for Postgresql, Redis, and Quay must be pre-loaded into the local podman registry.
+1. If Quay will be running on a disconnected host, the required images for Postgresql, Redis, and Quay must be pre-loaded into the local podman registry.  Adjust image versions as desired.
 
 On an internet connected host:
 ```
@@ -38,7 +38,7 @@ podman load -i /path/to/quay.tar
 
 ## Setup
 ### Update Ansible inventory
-In either `/etc/ansible/hosts` or a local `inventory.yml`, configure your inventory for your container host using a local connection.
+In either `/etc/ansible/hosts` or a local `inventory.yml`, configure your inventory for your container host using a local connection.  The example here reflects the `hosts` configured in the `quay-setup.yml` playbook.
 ```
 registry:
   hosts:
@@ -47,27 +47,51 @@ registry:
     ansible_connection: local
 ```
 ### Set Global Variables
-* Quay registry variables
+* Quay registry variable defaults are configured in `vars/quay-registry-vars.yml`.  Change defaults there, or add overrides in the playbook `quay-setup.yml`, or provide additional values at the command-line when launching the playbook.
 1. `base_dir`: A filesystem with at least 20G free for all Quay data to be stored.
-> OPTIONAL: customize subdirectory names for Quay components and/or local pull secret
+> OPTIONAL: customize subdirectory names for Quay components and/or local pull secret (this may not working due to improperly hard-coded paths in some tasks)
 2. `registry_fqdn`: Container hostname (or an approriate alias)
 3. `registry_ip`: IP of your container host
-4. `#postgresql_ip`: Uncomment to use an IP different from `registry_ip`
-> When testing on a container host running on VMware, quay could no communicate with postgresql without using the IP of the postgresql container.  In this case, set an IP address for postgresql to this variable to ensure the container always uses the same IP so the Quay config is always valid. (podman on RHEL 8 uses 10.88.0.x as the default container network)
-5. `#redis_ip`: Uncomment to use an IP different from `registry_ip`
-> When testing on a container host running on VMware, quay could no communicate with redis without using the IP of the redis container.  In this case, set an IP address for redis to this variable to ensure the container always uses the same IP so the Quay config is always valid. (podman on RHEL 8 uses 10.88.0.x as the default container network)
-6. `quay_host_connected`: Set true|false if container host is internet-connected
+4. `postgresql_ip`: Change as desired, default is `10.88.0.6`
+> NOTE: When testing on a container host running on VMware, quay could not communicate with postgresql without using the IP of the postgresql container.  In this case, set an IP address for postgresql to this variable to ensure the container always uses the same IP so the Quay config is always valid. (podman on RHEL 8 uses 10.88.0.x as the default container network)
+5. `redis_ip`: Change as desired, default is `10.88.0.7`
+> NOTE: When testing on a container host running on VMware, quay could not communicate with redis without using the IP of the redis container.  In this case, set an IP address for redis to this variable to ensure the container always uses the same IP so the Quay config is always valid. (podman on RHEL 8 uses 10.88.0.x as the default container network)
+6. `quay_host_connected`: Set true|false if container host is internet-connected `(default is true)`
 > When set to ***true***, `required_pkgs` will be checked/installed and postgresql, redis, and quay containers will pull from registry.redhat.io.  When set to ***false***, postgresql, redis, and quay must be pre-loaded in the local podman registry.
-7. `quay_port`: Set to desired SSL port
+7. `quay_port`: Set to desired SSL port `(default is 8443)`
 8. `cloud_secret`: full path for pullsecret from [https://cloud.redhat.com](https://cloud.redhat.com)
+> OPTIONAL:  
+> 9. `ssl_cert`: Signed certificate for registry host  
+> 10. `ssl_key`: Private key for registry host cert
 
-
+### Set Username/Password Variables
+> OPTIONAL: Set required Postgresql and Redis data in a vaulted variable file  
+1. `postgresql_user`
+2. `postgresql_pass`
+3. `postgresql_db`
+4. `postgresql_admin_pass`
+5. `redis_password`
 ## Basic workflow
 The `quay-setup.yml` playbook can be run at any time, and this will typically only be run once.
 > NOTE: For test environments, the disconnected registry host does not have to actually be disconnected and may actually be the same host used to do the initial mirror to disk.
 
 ### Quay Registry Setup
-`ansible-playbook quay-setup.yml` or `ansible-playbook -i inventory.yml quay-setup.yml`
+```
+# if using /etc/ansible/hosts
+ansible-playbook quay-setup.yml` 
+```
+```
+# if using an inventory file
+ansible-playbook -i inventory.yml quay-setup.yml
+```
+```
+# if using a file for overriding variable
+anisble-playbook quay-setup.yml -e@myvars.yaml
+```
+```
+# if using a vault for username/passwords
+ansible-playbook quay-setup.yml -e@myvault.yml --ask-vault-pass
+```
 
 1. Check for and install required packages as required
 2. Setup and configure directories for Quay

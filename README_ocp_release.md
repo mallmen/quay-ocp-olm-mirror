@@ -5,7 +5,6 @@ This repository provides playbooks that will mirror the OpenShift release images
 > This playbook was written specifically to work with Quay as the disconnected registry.  It may or may not work if the disconnected registry is something else.
 
 ## Infrastructure Prerequisites
-
 1. Internet-connected host with podman installed
 > Tested with:
 >  * podman 2.2.1
@@ -16,13 +15,10 @@ This repository provides playbooks that will mirror the OpenShift release images
 4. Host on disconnected network running Quay
 > Tested with:
 > * Quay 3.4.3
-
 ## Disconnected Prerequisites
-
 1. Quay credentials
 2. Quay namespace and repository are already created
 3. Quay credentials have write access to repository
-
 ## Setup
 ### Update Ansible inventory
 In either `/etc/ansible/hosts` or a local `inventory.yml`, configure your inventory for your container host using a local connection.  Substitute for `localhost` as appropriate for the environment. `connected` should have internet connectivity.  
@@ -58,18 +54,29 @@ connected:
 2. `disconnected_registry_pass`: your quay password
 ## Download Release Content
 Run the `download-release.yml` playbook on the `connected` host.  This will create a tar file at `{{ bundle_file }}`.  Next, the tar.gz file should be transferred to `{{ bundle_file }}` on the `registry` host.  
-
-## Upload Release Content
 ### Prerequisites
 > Ensure the approriate information is configured as defined in `roles/ocp-mirror/defaults/main.yml` or the appropriate alternate location as required.
 1. `disconnected_registry_user` has already been created with `disconnected_registry_pass` in the registry on `registry` (for Quay this should be a super-user)    
 2. `local_repository` has been created on `registry` when using Quay.  This should be an `organization` and a `repository`.  Ensure these are created with the same user as `disconnected_registry_user` or that `disconnected_registry_user` has the appropriate write permissions to the `organization` and `repository`. 
 > NOTE: For test environments, the `registry` host does not have to actually be disconnected and may actually be the same host used to do the initial mirror to disk.
 
-### OpenShift image mirror disk
-`ansible-playbook ocp-mirror-connected.yml` or `ansible-playbook -i inventory.yml ocp-mirror-connected.yml`
-> This ***must*** run on an internet connected host.
+### Execute Download Playbook
+Username/Password credentials for the Quay registry are not required at this stage.
+```
+# if using /etc/ansible/hosts
+ansible-playbook download-release.yml
+```
+```
+# if using inventory.yml
+ansible-playbook -i inventory.yml download-release.yml
+```
+```
+# if using custom variable file
+ansible-playbook download-release.yml -e@myvars.yml
+```
+> NOTE: This ***must*** run on an internet connected host.  
 
+This playbook will:
 1. Setup directories for downloaded data
 2. Download binaries for OpenShift release being mirrored
 3. Install binaries on host system
@@ -77,12 +84,25 @@ Run the `download-release.yml` playbook on the `connected` host.  This will crea
 5. Create tar of images and binary downloads for transfer to disconnected registry host
 6. OPTIONAL: Transfer to disconnected registry host if required
 
-### OpenShift image mirror to registry
-`ansible-playbook ocp-mirror-disconnected.yml` or `ansible-playbook -i inventory.yml ocp-mirror-disconnected.yml`
+### Execute Upload Playbook
+```
+# if using /etc/ansible/hosts
+ansible-playbook upload-release.yml
+```
+```
+# if using inventory.yml
+ansible-playbook -i inventory.yml upload-release.yml
+```
+```
+# if using custom variable file
+ansible-playbook upload-release.yml -e@myvars.yml
+```
+```
+# if using custom variable file
+ansible-playbook upload-release.yml -e@mycreds.yml --ask-vault-pass
+```
+This playbook will:  
 1. Extract the transferred bundle
 2. Install OpenShift binaries: oc, openshit-install
 3. Create merged pull-secret including disconnected registry credentials
 4. Sync OpenShift images from disk to registry
-
-## TODO
-Update `ocp-mirror-disconnected.yml` to include API calls to potentially create initial username/password and initial namespace/repoistory.

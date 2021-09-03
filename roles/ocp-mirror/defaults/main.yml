@@ -10,10 +10,10 @@ arch: x86_64
 
 # These define where we are mirroring to
 local_registry: registry.ocp4.example.com:8443
-local_repository: ocp4/release      # needs to exist already
-disconnected_registry_user: admin    # needs to be able to write local_repository
-disconnected_registry_pass: redhat12
+local_repository: ocp4/ocp-release      # needs to exist already
+disconnected_registry_user: admin       # put this in vault file instead
+disconnected_registry_pass: admin       # put this in valut file instead
 registry_creds: "{{ disconnected_registry_user }}:{{ disconnected_registry_pass }}"
 
 cloud_secret: "{{ removable_media_path }}/pull-secret"
-merged_secret: "{{ removable_media_path }}/merged-pull-secret.json"
+registry_secret: "{{ removable_media_path }}/registry-pull-secret.json"

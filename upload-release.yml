@@ -1,6 +1,6 @@
 ---
 - name: Mirror OpenShift operators
-  hosts: disconnected
+  hosts: registry
 
   tasks:
     - name: Mirror release from disk to disconnected registry

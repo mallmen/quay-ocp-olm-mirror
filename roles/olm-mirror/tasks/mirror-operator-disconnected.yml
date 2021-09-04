@@ -87,25 +87,15 @@
 
     - name: Split the manifest file to avoid Quay issues
       command: >
-        split -d -l 2 {{ new_path }}/mapping.txt {{ new_path }}/mapping.
-
-    - name: Backup original mapping.txt
-      copy:
-        src: "{{ new_path }}/mapping.txt"
-        dest: "{{ new_path }}/orig-mapping.txt"
-
-    - name: Remove original mapping.txt so it does not get in the way of the split files
-      file:
-        path: "{{ new_path }}/mapping.txt"
-        state: absent
+        split -d -l 10 {{ new_path }}/mapping.txt {{ new_path }}/chunk.
 
     - name: Mirror {{ operator.name }} to registry
       command: >
-        oc image mirror -a {{ registry_secret }} -f "{{ item}}"
+        oc image mirror -a {{ registry_secret }} -f "{{ item }}"
       args:
         chdir: "{{ bundle_dir }}"
       with_fileglob:
-        - "{{ new_path }}/mapping.*"
+        - "{{ new_path }}/chunk.*"
 
     - name: Find built {{ tmp_icsp }} file
       find:

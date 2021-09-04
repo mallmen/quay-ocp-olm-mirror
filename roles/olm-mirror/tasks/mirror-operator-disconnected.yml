@@ -38,7 +38,7 @@
     
     - name: Create {{ operator.name }} manifest
       command: >
-        oc adm catalog mirror -a {{ pullsecret }} --manifests-only
+        oc adm catalog mirror -a {{ pullsecret }} --manifests-only -a {{ registry_secret }}
         file://mirror/{{ local_namespace }}/{{ rh_catalog_image|basename }} {{ local_registry }}/{{ local_namespace }}
       args:
         chdir: "{{ bundle_dir }}"
@@ -85,11 +85,27 @@
         state: absent
         regexp: "{{ rh_catalog_image|basename }}"
 
+    - name: Split the manifest file to avoid Quay issues
+      command: >
+        split -d -l 2 {{ new_path }}/mapping.txt {{ new_path }}/mapping.
+
+    - name: Backup original mapping.txt
+      copy:
+        src: "{{ new_path }}/mapping.txt"
+        dest: "{{ new_path }}/orig-mapping.txt"
+
+    - name: Remove original mapping.txt so it does not get in the way of the split files
+      file:
+        path: "{{ new_path }}/mapping.txt"
+        state: absent
+
     - name: Mirror {{ operator.name }} to registry
       command: >
-        oc image mirror -a {{ pullsecret }} -f "{{ new_path }}/mapping.txt"
+        oc image mirror -a {{ registry_secret }} -f "{{ item}}"
       args:
         chdir: "{{ bundle_dir }}"
+      with_fileglob:
+        - "{{ new_path }}/mapping.*"
 
     - name: Find built {{ tmp_icsp }} file
       find:

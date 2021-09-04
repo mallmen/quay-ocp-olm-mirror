@@ -52,24 +52,20 @@ connected:
 5. `operator_bundle`: full path of bundle file with all operators
 6. `local_registry`: url (with port if necessary) of disconnected registry
 7. `local_namespace`: must exist in registry
-8. `registry_secret`: full path to disconnected registry pull secret
-9. `pullsecret`: full path to pull-secret from https://cloud.redhat.com
-9. `kubeconfig`: full path to kubeconfig file for disconnected cluster
+8. `pullsecret`: full path to pull-secret from https://cloud.redhat.com
+9. `registry_secret`: full path to disconnected registry pull secret
+10. `kubeconfig`: full path to kubeconfig file for disconnected cluster (needed to udpate `ImageContentSourcePolicy`)
 > NOTE: there are other options for handling authentication to the cluster if desired
-### Username/Password Variables
-> The credentials for the Quay registry should be stored with `ansible-vault`.  This is required for the upload process.
-1. `disconnected_registry_user`: your quay user
-2. `disconnected_registry_pass`: your quay password
 ## Download Operator Images
 Run the `download-operators.yml` playbook on the `connected` host.  This will create a tar file at `{{ bundle_file }}`.  Next, the tar.gz file should be transferred to `{{ bundle_file }}` on the `registry` host.  
 ### Prerequisites
 > Ensure the approriate information is configured as defined in `roles/olm-mirror/defaults/main.yml` or the appropriate alternate location as required.
 1. `disconnected_registry_user` has already been created with `disconnected_registry_pass` in the registry on `registry` (for Quay this should be a super-user)    
-2. `local_namespace` has been created on `registry` when using Quay.  This should be an `organization`.  Ensure this is created with the same user as `disconnected_registry_user` or that `disconnected_registry_user` has the appropriate write permissions to the `organization`. 
+2. The username/password has been appropriately configured as a valid pull-secret and stored at `registry_secret`.
+3. `local_namespace` has been created on `registry` when using Quay.  This should be an `organization`.  Ensure this is created with the same user as `disconnected_registry_user` or that `disconnected_registry_user` has the appropriate write permissions to the `organization`. 
 > NOTE: For test environments, the `registry` host does not have to actually be disconnected and may actually be the same host used to do the initial mirror to disk.
 
 ### Execute Operator Download Playbook
-Username/Password credentials for the Quay registry are not required at this stage.
 ```
 # if using /etc/ansible/hosts
 ansible-playbook download-operators.yml
@@ -85,16 +81,11 @@ ansible-playbook download-operators.yml -e@myvars.yml
 > NOTE: This ***must*** run on an internet connected host.  
 
 This playbook will:
-1. Setup directories for downloaded data
-2. Download binaries for OpenShift release being mirrored
-3. Install binaries on host system
-4. Sync images to local directory
-5. Create tar of images and binary downloads for transfer to disconnected registry host
-6. OPTIONAL: Transfer to disconnected registry host if required
-
+1. TBD
 ### Execute Upload Playbook
+Upload by using mapping.txt directly, and to work around a bug in Quay, the mapping.txt is split into chunks of 10 lines to limit the rate data is uploaded.
 ```
-# if using /etc/ansible/hosts
+# if using /etc/ansible/hosts or inventory configure in ansible.cfg
 ansible-playbook upload-release.yml
 ```
 ```
@@ -105,12 +96,5 @@ ansible-playbook -i inventory.yml upload-release.yml
 # if using custom variable file
 ansible-playbook upload-release.yml -e@myvars.yml
 ```
-```
-# if using custom variable file
-ansible-playbook upload-release.yml -e@mycreds.yml --ask-vault-pass
-```
 This playbook will:  
-1. Extract the transferred bundle
-2. Install OpenShift binaries: oc, openshit-install
-3. Create merged pull-secret including disconnected registry credentials
-4. Sync OpenShift images from disk to registry
+1. TBD

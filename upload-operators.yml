@@ -1,9 +1,6 @@
 ---
 - name: Mirror OpenShift operators
-  hosts: disconnected
-
-  vars_files:
-    - vars/users.yaml
+  hosts: registry
 
   tasks:
     - name: Mirror operators from disk to disconnected registry

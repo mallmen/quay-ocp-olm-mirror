@@ -45,9 +45,10 @@ connected:
 * Where temporary images are downloaded on `connected` to create bundle file to transfer
 * Where the bundle file is extracted on `registry` host for upload
 4. `ocp_release`: x.y.z for OpenShift release to mirror
-5. `local_repository`: namespace/repository in Quay to mirror *(**must already exist**)*
-6. `cloud_secret`: full path for pullsecret from [https://cloud.redhat.com](https://cloud.redhat.com)
-7. `registry_secret`: full path to created disconnected registry pull secret
+5. `local_registry`: url (with port if necessary) of disconnected registry
+6. `local_repository`: namespace/repository in Quay to mirror *(**must already exist**)*
+7. `cloud_secret`: full path for pullsecret from [https://cloud.redhat.com](https://cloud.redhat.com)
+8. `registry_secret`: full path to created disconnected registry pull secret
 
 ### Username/Password Variables
 > The credentials for the Quay registry should be stored with `ansible-vault`

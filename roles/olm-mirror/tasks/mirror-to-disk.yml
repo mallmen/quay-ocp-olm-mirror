@@ -1,21 +1,21 @@
-- name: Set login creds for registry.redhat.io
-  include_role:
-    name: podman-login
-  vars:
-    registry:
-      source: registry.redhat.io
-      username: "{{ redhat_login }}"
-      password: "{{ redhat_password }}"
-
-- name: Set login creds for {{ local_registry }}
-  include_role:
-    name: podman-login
-  vars:
-    registry:
-      source: "{{ local_registry }}"
-      username: "{{ quay_user }}"
-      password: "{{ quay_pass }}"
-
+#- name: Set login creds for registry.redhat.io
+#  include_role:
+#    name: podman-login
+#  vars:
+#    registry:
+#      source: registry.redhat.io
+#      username: "{{ redhat_login }}"
+#      password: "{{ redhat_password }}"
+#
+#- name: Set login creds for {{ local_registry }}
+#  include_role:
+#    name: podman-login
+#  vars:
+#    registry:
+#      source: "{{ local_registry }}"
+#      username: "{{ quay_user }}"
+#      password: "{{ quay_pass }}"
+#
 - name: Cleanup bundle directory
   when: cleanup
   file:

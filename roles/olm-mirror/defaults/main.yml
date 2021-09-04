@@ -18,7 +18,8 @@ ocp_release: 4.8
 rh_catalog_image: registry.redhat.io/redhat/redhat-operator-index:v{{ ocp_release }}
 local_registry: registry.ocp4.example.com:8443
 local_namespace: "olm-{{ ocp_release }}"
-pullsecret: "{{ lookup('env', 'XDG_RUNTIME_DIR') }}/containers/auth.json"
+pullsecret: /tmp/pull-secret
+registry_secret: /tmp/merged-pull-secret.json
 
 tmp_icsp: imageContentSourcePolicy.yaml
 kubeconfig: ~/.kube/kubeconfig

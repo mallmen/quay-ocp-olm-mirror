@@ -1,12 +1,62 @@
 ---
-- name: Mirror OpenShift operators
+- name: Create merged pull secret
   hosts: connected
 
-  vars_files:
-    - vars/users.yaml
+  vars:
+    merged_secret: "{{ lookup('env', 'XDG_RUNTIME_DIR') }}/containers/auth.json"
+    auth_json_exists: no
+    epoch: "{{ ansible_date_time.epoch }}"
 
   tasks:
+    - name: Check if there is an existing auth.json
+      stat:
+        path: "{{ merged_secret }}"
+      register: auth_json
+
+    - debug: var=auth_json
+
+    - name: Back file up if it exists
+      when: auth_json.stat.exists
+      block:
+        - name: Note that the file pre-existed
+          set_fact:
+            auth_json_exists: yes
+            
+        - name: Backup file
+          copy:
+            src: "{{ merged_secret }}"
+            dest: "{{ merged_secret }}.{{ epoch }}"
+
+    - name: Read secrets into dictionary variables
+      set_fact:
+        _pullsecret: "{{ lookup('file', pullsecret) }}"
+        _registry: "{{ lookup('file', registry_secret) }}"
+
+    - name: Create merged secret from pull secret and registry secret
+      copy:
+        content: "{{ _pullsecret | combine(_registry, recursive=True) | to_nice_json }}"
+        dest: "{{ merged_secret }}"
+        
     - name: Mirror operators from internet to disk
       include_role:
         name: olm-mirror
         tasks_from: mirror-to-disk.yml
+
+    - name: Restore backed up auths.json
+      when: auth_json_exists
+      block:
+        - name: Restore the original auths.json
+          copy:
+            src: "{{ merged_secret }}.{{ epoch }}"
+            dest: "{{ merged_secret }}"
+
+        - name: Delete backup file
+          file:
+            path: "{{ merged_secret }}.{{ epoch }}"
+            state: absent
+
+    - name: Remove auths.json if created for this play
+      when: not auth_json_exists
+      file:
+        path: "{{ merged_secret }}"
+        state: absent

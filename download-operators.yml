@@ -32,6 +32,12 @@
         _pullsecret: "{{ lookup('file', pullsecret) }}"
         _registry: "{{ lookup('file', registry_secret) }}"
 
+    - name: Create basedir of $XGD_RUNTIME_DIR if does not exist
+      when: not auth_json.stat.exists
+      file:
+        path: "{{ merged_secret|dirname }}"
+        state: directory
+
     - name: Create merged secret from pull secret and registry secret
       copy:
         content: "{{ _pullsecret | combine(_registry, recursive=True) | to_nice_json }}"
@@ -58,5 +64,5 @@
     - name: Remove auths.json if created for this play
       when: not auth_json_exists
       file:
-        path: "{{ merged_secret }}"
+        path: "{{ merged_secret|dirname }}"
         state: absent

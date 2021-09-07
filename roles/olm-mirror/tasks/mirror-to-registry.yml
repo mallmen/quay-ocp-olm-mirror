@@ -60,7 +60,6 @@
     label: "{{ working_dir|basename }}"
 
 - name: Get imagecontentsourcepolicies
-  when: cleanup
   k8s_info:
     kubeconfig: "{{ kubeconfig }}"
     api_version: v1alpha1

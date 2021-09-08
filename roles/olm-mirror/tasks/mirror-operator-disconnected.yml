@@ -91,7 +91,7 @@
 
     - name: Mirror {{ operator.name }} to registry
       command: >
-        oc image mirror -a {{ registry_secret }} -f "{{ item }}"
+        oc image mirror -a {{ registry_secret }} -f "{{ item }}" --filter-by-os='.*'
       args:
         chdir: "{{ bundle_dir }}"
       with_fileglob:

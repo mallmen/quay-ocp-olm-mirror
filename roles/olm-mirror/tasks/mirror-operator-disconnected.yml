@@ -38,70 +38,17 @@
     
     - name: Create {{ operator.name }} manifest
       command: >
-        oc adm catalog mirror -a {{ pullsecret }} --manifests-only -a {{ registry_secret }}
+        oc adm catalog mirror -a {{ pullsecret }} -a {{ registry_secret }}
         file://mirror/{{ local_namespace }}/{{ rh_catalog_image|basename }} {{ local_registry }}/{{ local_namespace }}
       args:
         chdir: "{{ bundle_dir }}"
 
-    - name: Find tmp file directory for {{ operator.name }}
-      find:
-        paths: "{{ bundle_dir }}"
-        patterns: "{{ rh_catalog_image.split(':')[0]|basename }}-*"
-        file_type: directory
-        recurse: yes
-      register: tmp_file_dir
-
-    - name: Check that tmp file directory was found
-      assert:
-        that:
-          - tmp_file_dir.matched == 1
-        fail_msg: "Found {{ tmp_file_dir.matched }} directories, expected 1"
-
-    - name: Save the old and new path
-      set_fact:
-        old_path: "{{ tmp_file_dir.files[0].path }}"
-        new_path: "{{ tmp_file_dir.files[0].path|dirname }}/{{ operator.name }}"
-
-    - name: Create new tmp manifest directory for {{ operator.name }}
-      file:
-        path: "{{ new_path }}"
-        state: directory
-
-    - name: Copy manifest files from old:{{ old_path|dirname }} to new:{{ new_path|dirname }}
-      copy:
-        src: "{{ item }}"
-        dest: "{{ new_path }}"
-      with_fileglob:
-        - "{{ old_path }}/*"
-
-    - name: Remove old tmp file directory
-      file:
-        path: "{{ old_path }}"
-        state: absent
-
-    - name: Remove extra catalog image from manifest
-      lineinfile:
-        path: "{{ new_path }}/mapping.txt"
-        state: absent
-        regexp: "{{ rh_catalog_image|basename }}"
-
-    - name: Split the manifest file to avoid Quay issues
-      command: >
-        split -d -l 10 {{ new_path }}/mapping.txt {{ new_path }}/chunk.
-
-    - name: Mirror {{ operator.name }} to registry
-      command: >
-        oc image mirror -a {{ registry_secret }} -f "{{ item }}"
-      args:
-        chdir: "{{ bundle_dir }}"
-      with_fileglob:
-        - "{{ new_path }}/chunk.*"
-
     - name: Find built {{ tmp_icsp }} file
       find:
-        paths: "{{ new_path }}"
+        paths: "{{ bundle_dir }}"
         file_type: file
         patterns: "{{ tmp_icsp }}"
+        recurse: yes
       register: tmp_icsp_file
 
     - name: Check that at least one {{ tmp_icsp }} file was found

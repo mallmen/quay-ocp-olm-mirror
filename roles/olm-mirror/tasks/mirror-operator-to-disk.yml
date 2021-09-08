@@ -38,7 +38,7 @@
         -p "{{ operator.name }}"
     
     - name: Push the custom catalog image to disconnected registry
-      command: podman push {{ local_registry }}/{{ local_namespace }}/{{ rh_catalog_image|basename }}
+      command: podman push --authfile {{ merged_secret }} {{ local_registry }}/{{ local_namespace }}/{{ rh_catalog_image|basename }}
     
     - name: Get dangling images from multiple prune operations
       command: podman images --filter dangling=true -q

@@ -38,8 +38,13 @@
 - name: Clean up residual temporary repository data
   become: yes
   file:
-    path: "{{ bundle_dir }}/v2"
+    path: "{{ bundle_dir }}/{{ clean_dir }}"
     state: absent
+  loop:
+    - v2
+    - "manifests-{{ local_namespace }}"
+  loop_control:
+    loop_var: clean_dir
 
 - name: Find temporary index.db working directories
   find:
@@ -65,6 +70,7 @@
     api_version: v1alpha1
     name: "{{ local_namespace }}-{{ rh_catalog_image.split(':')[0]|basename }}"
     kind: ImageContentSourcePolicy
+    validate_certs: "{{ validate_cluster_cert | default(omit) }}"
   register: icsp
 
 - name: Save any existing ImageContentSourcePolicy configuration
@@ -109,3 +115,4 @@
     kubeconfig: "{{ kubeconfig }}"
     state: present
     src: /tmp/olm-icsp.yml
+    validate_certs: "{{ validate_cluster_cert | default(omit) }}"

@@ -55,6 +55,7 @@ connected:
 8. `pullsecret`: full path to pull-secret from https://cloud.redhat.com
 9. `registry_secret`: full path to disconnected registry pull secret
 10. `kubeconfig`: full path to kubeconfig file for disconnected cluster (needed to udpate `ImageContentSourcePolicy`)
+11. `validate_cluster_cert`: set to `no` if the cluster cert is not trusted already
 > NOTE: there are other options for handling authentication to the cluster if desired
 ## Download Operator Images
 Run the `download-operators.yml` playbook on the `connected` host.  This will create a tar file at `{{ bundle_file }}`.  Next, the tar.gz file should be transferred to `{{ bundle_file }}` on the `registry` host.  

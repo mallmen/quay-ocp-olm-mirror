@@ -24,16 +24,26 @@ $ ls
 manifests-redhat-operator-index-1631123227
 $ rm -rf manifests-redhat-operator-index-1631123227/
 ```
-Use `sqlite3` to inspect the database.  This dumps everything in the `related_image` table into a file.  Search the file of the operator you wish to add, and make note of the `operatorbundle_name` for the next step.
+Use `sqlite3` to inspect the database.  This dumps the `operatorbundle_name` field from the `related_image` table.  There are multiple images for each operator, so user `sort -u` to make the list easily reviewable.  Make note of the desired `operatorbundle_name` for the next step.
 ```
-$ echo "select * from related_image;" | sqlite3 -line /tmp/107008609/index.db > related_image.txt
-$ vim relate_image.txt 
-```
+$ echo "select operatorbundle_name from related_image;" | sqlite3 -line /tmp/107008609/index.db | sort -u
 
-Once you have the correct `operatorbundle_name`, you can grep the specific image name from the database.  Or simply find the appropriate image name while using `vim` in the previous step.
+operatorbundle_name = 3scale-operator.v0.3.0
+operatorbundle_name = 3scale-operator.v0.4.0
+operatorbundle_name = 3scale-operator.v0.4.1
+operatorbundle_name = 3scale-operator.v0.4.2
+<snip>
+...
+</snip>
+operatorbundle_name = windows-machine-config-operator.v2.0.0
+operatorbundle_name = windows-machine-config-operator.v2.0.1
+operatorbundle_name = windows-machine-config-operator.v2.0.2
+operatorbundle_name = windows-machine-config-operator.v2.0.3
 ```
-$ echo "select * from related_image where operatorbundle_name like 'mtc-operator.v1.5.1%';" | sqlite3 -line /tmp/107008609/index.db | grep operator-bundle
-              image = registry.redhat.io/rhmtc/openshift-migration-operator-bundle@sha256:68ed55736af9e054b777315600f433f8ac304833f48a3765cc27d0355a3b4617
+With the `operatorbundle_name`, query the database for the image with `operator-bundle` in the name.  This is the image required to add to the custom operator catalog.
+```
+$ echo "select image from related_image where operatorbundle_name = 'mtc-operator.v1.5.1' and image like '%operator-bundle%';" | sqlite3 -line /tmp/107008609/index.db
+image = registry.redhat.io/rhmtc/openshift-migration-operator-bundle@sha256:68ed55736af9e054b777315600f433f8ac304833f48a3765cc27d0355a3b4617
 ```
 
 Use the `opm` command to add the new image to your existing disconnected catalog image.

@@ -68,7 +68,7 @@
   k8s_info:
     kubeconfig: "{{ kubeconfig }}"
     api_version: v1alpha1
-    name: "{{ local_namespace }}-{{ rh_catalog_image.split(':')[0]|basename }}"
+    name: "{{ rh_catalog_image.split(':')[0]|basename }}"
     kind: ImageContentSourcePolicy
     validate_certs: "{{ validate_cluster_cert | default(omit) }}"
   register: icsp

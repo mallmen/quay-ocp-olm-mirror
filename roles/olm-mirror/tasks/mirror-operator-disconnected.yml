@@ -110,8 +110,14 @@
           - tmp_icsp_file.matched >= 1
         fail_msg: "Found {{ tmp_icsp_file.matched }} icsp file(s), there should be at least 1"
 
-    - name: Update imageContentSourcePolicy
+    - name: Update imageContentSourcePolicy source entries
       replace:
         path: "{{ tmp_icsp_file.files[0].path }}"
         regexp: "mirror/{{ local_namespace }}/{{ rh_catalog_image.split(':')[0]|basename }}"
         replace: 'registry.redhat.io'        
+
+    - name: Update imageContentSourcePolicy name
+      replace:
+        path: "{{ tmp_icsp_file.files[0].path }}"
+        regexp: "name: {{ local_namespace }}-{{ rh_catalog_image.split(':')[0]|basename }}-*"
+        replace: "name: {{ rh_catalog_image.split(':')[0]|basename }}"
